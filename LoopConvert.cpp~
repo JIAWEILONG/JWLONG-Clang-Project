@@ -38,7 +38,7 @@ public:
         D->getDeclKindName());
   }
 };
-//abd
+
 
 DeclarationMatcher fMatcher = 
   functionDecl(isDefinition()).bind("funcDecl");
