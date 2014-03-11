@@ -26,19 +26,20 @@ static cl::extrahelp MoreHelp("\nMore help text...");
 
 
 DeclarationMatcher vMatcher = 
-  varDecl(isDefinition(isLocalVarDecl ())).bind("varDecl");
+  varDecl(isDefinition()).bind("varDecl");
 
 class VarPrinter : public MatchFinder::MatchCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {    
-    if (const VarDecl *D = Result.Nodes.getNodeAs<clang::VarDecl>("varDecl"))
-      //D->dumpColor();
+    if (const VarDecl *v = Result.Nodes.getNodeAs<clang::VarDecl>("varDecl"))
+      // D->dumpColor();
       printf("VariableName:%s\tType:%s\n",
-        D->getDeclName().getAsString().c_str(),
-        D->getDeclKindName());
+        v->getDeclName().getAsString().c_str(),
+        v->getType().getAsString().c_str());
+
   }
 };
-//abd
+
 
 DeclarationMatcher fMatcher = 
   functionDecl(isDefinition()).bind("funcDecl");
@@ -47,7 +48,7 @@ class FunctionPrinter : public MatchFinder::MatchCallback {
 public:
 	virtual void run(const MatchFinder::MatchResult &Result) {		
     if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("funcDecl"))
-      //FD->dumpColor();
+      // FD->dumpColor();
       printf("FunctionName:%s\tType:%s\n",
         FD->getNameInfo().getAsString().c_str(), 
         FD->getResultType().getAsString().c_str());
@@ -63,11 +64,9 @@ int main(int argc, const char **argv) {
 
   FunctionPrinter Printer1;
   VarPrinter Printer2;
-  MatchFinder Finder1;
-  MatchFinder Finder2;
-  Finder1.addMatcher(fMatcher, &Printer1);
-  Finder2.addMatcher(vMatcher, &Printer2);
-
-  return (Tool.run(newFrontendActionFactory(&Finder1)),
-          Tool.run(newFrontendActionFactory(&Finder2)));
+  MatchFinder Finder;
+  Finder.addMatcher(fMatcher, &Printer1);
+  Finder.addMatcher(vMatcher, &Printer2);
+  
+  return (Tool.run(newFrontendActionFactory(&Finder)));
 }
