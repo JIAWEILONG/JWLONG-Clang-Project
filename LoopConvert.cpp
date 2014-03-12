@@ -10,6 +10,10 @@
 #include "clang/ASTMatchers/ASTMatchersMacros.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Rewrite/Rewriter.h"
+#include "clang/Rewrite/Rewriters.h"
+
 using namespace clang::tooling;
 using namespace llvm;
 
@@ -54,22 +58,22 @@ public:
 };
 
 
-class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>
-{
-public:
-    MyASTVisitor(Rewriter &R)
-        : TheRewriter(R)
-    {}
-    bool VisitvarDecl(VarDecl *V) {
-        if (V->isDefinition()) {            
-            T = V->getDeclName().getAsString().c_str();
-            TheRewriter.InsertText("printf("VariableName:%s\n",T)",true,true);
-        }
-        return true;
-    }
-private:
-    Rewriter &TheRewriter;
-};
+// class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>
+// {
+// public:
+//     MyASTVisitor(Rewriter &R)
+//         : TheRewriter(R)
+//     {}
+//     bool VisitvarDecl(VarDecl *V) {
+//         if (V->isDefinition()) {            
+//             T = V->getDeclName().getAsString().c_str();
+//             TheRewriter.InsertText("printf("VariableName:%s\n",T)",true,true);
+//         }
+//         return true;
+//     }
+// private:
+//     Rewriter &TheRewriter;
+// };
 
 
 
