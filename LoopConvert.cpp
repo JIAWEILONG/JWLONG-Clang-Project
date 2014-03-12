@@ -10,9 +10,9 @@
 #include "clang/ASTMatchers/ASTMatchersMacros.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Rewrite/Rewriter.h"
-#include "clang/Rewrite/Rewriters.h"
+// #include "clang/AST/RecursiveASTVisitor.h"
+// #include "clang/Rewrite/Rewriter.h"
+// #include "clang/Rewrite/Rewriters.h"
 
 using namespace clang::tooling;
 using namespace llvm;
@@ -88,6 +88,12 @@ int main(int argc, const char **argv) {
   MatchFinder Finder;
   Finder.addMatcher(fMatcher, &Printer1);
   Finder.addMatcher(vMatcher, &Printer2);
+
+  // Rewriter Rewrite;
+  // Rewrite.setSourceMgr();
+
+  // const RewriteBuffer *RewriteBuf =
+  //     Rewrite.getRewriteBufferFor();
   
   return (Tool.run(newFrontendActionFactory(&Finder)));
 }
