@@ -24,6 +24,19 @@ static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 // A help message for this specific tool can be added afterwards.
 static cl::extrahelp MoreHelp("\nMore help text...");
 
+DeclarationMatcher fMatcher = 
+  functionDecl(isDefinition()).bind("funcDecl");
+
+class FunctionPrinter : public MatchFinder::MatchCallback {
+public:
+  virtual void run(const MatchFinder::MatchResult &Result) {    
+    if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("funcDecl"))
+      // FD->dumpColor();
+      printf("FunctionName:%s\tType:%s\n",
+        FD->getNameInfo().getAsString().c_str(), 
+        FD->getResultType().getAsString().c_str());
+  }
+};
 
 DeclarationMatcher vMatcher = 
   varDecl(isDefinition()).bind("varDecl");
@@ -31,29 +44,33 @@ DeclarationMatcher vMatcher =
 class VarPrinter : public MatchFinder::MatchCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {    
-    if (const VarDecl *v = Result.Nodes.getNodeAs<clang::VarDecl>("varDecl"))
+    if (const VarDecl *D = Result.Nodes.getNodeAs<clang::VarDecl>("varDecl"))
       // D->dumpColor();
       printf("VariableName:%s\tType:%s\n",
-        v->getDeclName().getAsString().c_str(),
-        v->getType().getAsString().c_str());
+        D->getDeclName().getAsString().c_str(),
+        D->getType().getAsString().c_str());
 
   }
 };
 
 
-DeclarationMatcher fMatcher = 
-  functionDecl(isDefinition()).bind("funcDecl");
-
-class FunctionPrinter : public MatchFinder::MatchCallback {
+class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>
+{
 public:
-	virtual void run(const MatchFinder::MatchResult &Result) {		
-    if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("funcDecl"))
-      // FD->dumpColor();
-      printf("FunctionName:%s\tType:%s\n",
-        FD->getNameInfo().getAsString().c_str(), 
-        FD->getResultType().getAsString().c_str());
-	}
+    MyASTVisitor(Rewriter &R)
+        : TheRewriter(R)
+    {}
+    bool VisitvarDecl(VarDecl *V) {
+        if (V->isDefinition()) {            
+            T = V->getDeclName().getAsString().c_str();
+            TheRewriter.InsertText("printf("VariableName:%s\n",T)",true,true);
+        }
+        return true;
+    }
+private:
+    Rewriter &TheRewriter;
 };
+
 
 
 int main(int argc, const char **argv) {
