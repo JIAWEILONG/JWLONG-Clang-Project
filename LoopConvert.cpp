@@ -10,7 +10,12 @@
 #include "clang/ASTMatchers/ASTMatchersMacros.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
-// #include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Rewrite/Frontend/Rewriters.h"
+#include "clang/Basic/SourceManager.h"
+// #include "clang/Frontend/PreprocessorOutputOptions.h"
+#include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/Parse/ParseAST.h"
 // #include "clang/Rewrite/Rewriter.h"
 // #include "clang/Rewrite/Rewriters.h"
 
@@ -28,8 +33,7 @@ static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 // A help message for this specific tool can be added afterwards.
 static cl::extrahelp MoreHelp("\nMore help text...");
 
-DeclarationMatcher fMatcher = 
-  functionDecl(isDefinition()).bind("funcDecl");
+DeclarationMatcher fMatcher = functionDecl(isDefinition()).bind("funcDecl");
 
 class FunctionPrinter : public MatchFinder::MatchCallback {
 public:
@@ -42,8 +46,7 @@ public:
   }
 };
 
-DeclarationMatcher vMatcher = 
-  varDecl(isDefinition()).bind("varDecl");
+DeclarationMatcher vMatcher = varDecl(isDefinition()).bind("varDecl");
 
 class VarPrinter : public MatchFinder::MatchCallback {
 public:
@@ -53,29 +56,31 @@ public:
       printf("VariableName:%s\tType:%s\n",
         D->getDeclName().getAsString().c_str(),
         D->getType().getAsString().c_str());
-
   }
 };
 
-
-// class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>
-// {
-// public:
-//     MyASTVisitor(Rewriter &R)
-//         : TheRewriter(R)
-//     {}
-//     bool VisitvarDecl(VarDecl *V) {
-//         if (V->isDefinition()) {            
-//             T = V->getDeclName().getAsString().c_str();
-//             TheRewriter.InsertText("printf("VariableName:%s\n",T)",true,true);
-//         }
-//         return true;
-//     }
-// private:
-//     Rewriter &TheRewriter;
-// };
-
-
+class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>{
+public:
+  MyASTVisitor(Rewriter &R) : Rewrite(R){}
+  // MyASTVisitor(Rewriter &R){}
+    bool VisitVarDecl(VarDecl *V) {
+    // bool MyRecursiveASTVisitor::VisitVarDecl(VarDecl *V) {
+        if (V->hasBody())
+        {
+          // DeclStmt *Statement = cast<DeclStmt>(V);
+          //condition = varDecl->getPointOfInstantiation();
+          SourceRange sr = V->getSourceRange();
+          SourceLocation ST = sr.getBegin();
+          Rewrite.InsertText(ST,
+                              // "printf("value:%s\n",T->getDeclName().getAsString().c_str());\n",
+                              "aaaaaaaaaaaaa\n",
+                              true,true);
+        }
+        return true;
+    }
+private:
+    Rewriter &Rewrite;
+};
 
 int main(int argc, const char **argv) {
   CommonOptionsParser OptionsParser(argc, argv);
@@ -89,11 +94,17 @@ int main(int argc, const char **argv) {
   Finder.addMatcher(fMatcher, &Printer1);
   Finder.addMatcher(vMatcher, &Printer2);
 
-  // Rewriter Rewrite;
-  // Rewrite.setSourceMgr();
-
+  // MyASTVisitor ASTVisitor;
+  // Rewrite.setSourceMgr(ASTVisitor);
+  // clang::tooling::runToolOnCode(new MyASTVisitor);
   // const RewriteBuffer *RewriteBuf =
   //     Rewrite.getRewriteBufferFor();
+
+  // ParseAST(TheCompInst.getPreprocessor(), &TheConsumer, TheCompInst.getASTContext());
+  // const RewriteBuffer *RewriteBuf = Rewrite.getRewriteBufferFor(SourceMgr.getMainFileID());
+  // ofstream output(“output.txt”);
+  // output << string(RewriteBuf‐>begin(), RewriteBuf‐>end());
+  // output.close();
   
   return (Tool.run(newFrontendActionFactory(&Finder)));
 }
