@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string>
+#include <sstream>
 // Declares clang::SyntaxOnlyAction.
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
@@ -18,15 +19,16 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Parse/ParseAST.h"
 
-
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclBase.h"
+#include "clang/Lex/Lexer.h"
 
 
 using namespace clang::tooling;
 using namespace llvm;
-
 using namespace clang;
 using namespace clang::ast_matchers;
 
@@ -64,43 +66,78 @@ public:
   }
 };
 
-class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>{
-public:
-  MyASTVisitor(Rewriter &R) : Rewrite(R){}
-    bool VisitVarDecl(VarDecl *V) 
-    {
-        if (V->hasBody())
-        {
+// class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>{
+// public:
+//   MyASTVisitor(Rewriter &R) : Rewrite(R){}
+//     bool VisitVarDecl(VarDecl *V) {
+//         if (V->hasBody()){
+//           SourceRange sr = V->getSourceRange();
+//           SourceLocation ST = sr.getBegin();
+//           Rewrite.InsertText(ST,
+//                               // "printf("value:%s\n",T->getEvaluatedValue());\n",
+//                               "aaaaaaaaaaaaa\n",true,true);
+//         }
+//         return true;
+//     }
+// private:
+//     Rewriter &Rewrite;
+// };
 
+// class MyASTConsumer : public ASTConsumer{
+// public:
+//     MyASTConsumer(Rewriter &R) : Visitor(R){}
+//     virtual bool HandleTopLevelDecl(DeclGroupRef DR) {
+//         for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
+//             Visitor.TraverseDecl(*b);
+//         return true;
+//     }
+// private:
+//     MyASTVisitor Visitor;
+// };
+
+class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
+public:
+  DeclStmtASTVisitor(Rewriter &rewrite) : Rewrite(rewrite){}
+    bool VisitDeclStmt(DeclStmt *V)
+    {
+        if (V->isSingleDecl()){
           SourceRange sr = V->getSourceRange();
           SourceLocation ST = sr.getBegin();
           Rewrite.InsertText(ST,
-                              // "printf("value:%s\n",T->getEvaluatedValue().getAsString().c_str());\n",
-                              "aaaaaaaaaaaaa\n",
-                              true,true);
+                              // "printf("value:%s\n",T->getEvaluatedValue());\n",
+                              "aaaaaaaaaaaaa\n",true,true);
         }
         return true;
     }
 private:
-    Rewriter &Rewrite;
+  Rewriter &Rewrite;    
 };
 
-class MyASTConsumer : public ASTConsumer
+
+class DeclConsumer : public clang::ASTConsumer
 {
 public:
-    MyASTConsumer(Rewriter &R)
-        : Visitor(R)
-    {}
-
-    // virtual bool HandleTopLevelDecl(DeclGroupRef DR) {
-    //     for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
-    //         Visitor.TraverseDecl(*b);
-    //     return true;
-    // }
-
+    DeclConsumer(Rewriter &rewrite): visitor(rewrite){};
+    virtual bool HandleTopLevelDecl(DeclGroupRef DR) 
+    {
+      for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
+        visitor.TraverseDecl(*b);
+      return true;
+    }
 private:
-    MyASTVisitor Visitor;
+    DeclStmtASTVisitor visitor;
 };
+
+
+class InstrumentAction : public clang::ASTFrontendAction {
+public:
+  virtual clang::ASTConsumer *CreateASTConsumer(clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
+    DeclConsumer *consumer = new DeclConsumer(&Compiler.getASTContext());
+    return consumer;
+  }
+};
+
+
 
 int main(int argc, const char **argv) {
   CommonOptionsParser OptionsParser(argc, argv);
@@ -108,26 +145,25 @@ int main(int argc, const char **argv) {
   ClangTool Tool(OptionsParser.getCompilations(),
                  OptionsParser.getSourcePathList());
 
-  FunctionPrinter Printer1;
-  VarPrinter Printer2;
-  MatchFinder Finder;
-  Finder.addMatcher(fMatcher, &Printer1);
-  Finder.addMatcher(vMatcher, &Printer2);
+  // FunctionPrinter Printer1;
+  // VarPrinter Printer2;
+  // MatchFinder Finder;
+  // Finder.addMatcher(fMatcher, &Printer1);
+  // Finder.addMatcher(vMatcher, &Printer2);
+  // return (Tool.run(newFrontendActionFactory(&Finder)));
 
-  CompilerInstance TheCompInst;
-  SourceManager &SourceMgr = TheCompInst.getSourceManager();
-  Rewriter TheRewriter;
-  // TheRewriter.setSourceMgr(SourceMgr, TheCompInst.getLangOpts());
-  MyASTConsumer TheConsumer(TheRewriter);
-
-
-  ParseAST(TheCompInst.getPreprocessor(), &TheConsumer,
-           TheCompInst.getASTContext());
-
-
-  const RewriteBuffer *RewriteBuf =
-        TheRewriter.getRewriteBufferFor(SourceMgr.getMainFileID());
-  llvm::outs() << std::string(RewriteBuf->begin(), RewriteBuf->end());
+  // CompilerInstance TheCompInst;
+  // SourceManager &SourceMgr = TheCompInst.getSourceManager();
+  // Rewriter TheRewriter;
+  // // TheRewriter.setSourceMgr(SourceMgr, TheCompInst.getLangOpts());
+  // MyASTConsumer TheConsumer(TheRewriter);
+  // ParseAST(TheCompInst.getPreprocessor(), &TheConsumer,
+  //          TheCompInst.getASTContext());
+  // const RewriteBuffer *RewriteBuf =
+  //       TheRewriter.getRewriteBufferFor(SourceMgr.getMainFileID());
+  //       llvm::outs() << std::string(RewriteBuf->begin(), RewriteBuf->end());
   
-  return (Tool.run(newFrontendActionFactory(&Finder)));
+  
+  Tool.run(newFrontendActionFactory<InstrumentAction>());
+
 }
