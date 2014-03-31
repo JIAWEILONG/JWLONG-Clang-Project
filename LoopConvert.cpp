@@ -66,58 +66,35 @@ public:
   }
 };
 
-// class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>{
-// public:
-//   MyASTVisitor(Rewriter &R) : Rewrite(R){}
-//     bool VisitVarDecl(VarDecl *V) {
-//         if (V->hasBody()){
-//           SourceRange sr = V->getSourceRange();
-//           SourceLocation ST = sr.getBegin();
-//           Rewrite.InsertText(ST,
-//                               // "printf("value:%s\n",T->getEvaluatedValue());\n",
-//                               "aaaaaaaaaaaaa\n",true,true);
-//         }
-//         return true;
-//     }
-// private:
-//     Rewriter &Rewrite;
-// };
-
-// class MyASTConsumer : public ASTConsumer{
-// public:
-//     MyASTConsumer(Rewriter &R) : Visitor(R){}
-//     virtual bool HandleTopLevelDecl(DeclGroupRef DR) {
-//         for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
-//             Visitor.TraverseDecl(*b);
-//         return true;
-//     }
-// private:
-//     MyASTVisitor Visitor;
-// };
-
 class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
 public:
-  DeclStmtASTVisitor(Rewriter &rewrite) : Rewrite(rewrite){}
+  // DeclStmtASTVisitor(Rewriter *rewrite) : Rewrite(rewrite){}
+  DeclStmtASTVisitor(ASTContext *context) : Context(context){}
     bool VisitDeclStmt(DeclStmt *V)
     {
         if (V->isSingleDecl()){
-          SourceRange sr = V->getSourceRange();
-          SourceLocation ST = sr.getBegin();
+          // SourceRange sr = V->getSourceRange();
+          // SourceLocation ST = sr.getBegin();
+          SourceLocation ST = V->getLocEnd();
+          Rewriter Rewrite;
           Rewrite.InsertText(ST,
-                              // "printf("value:%s\n",T->getEvaluatedValue());\n",
-                              "aaaaaaaaaaaaa\n",true,true);
+                            // "printf("value:%s\n",T->getEvaluatedValue());\n",
+                            "//aaaaaaaaaaaaa\n",true,true);
+          // printf("testtest\n");
         }
         return true;
     }
 private:
-  Rewriter &Rewrite;    
+  ASTContext *Context;
+  // Rewriter *Rewrite;
 };
 
 
 class DeclConsumer : public clang::ASTConsumer
 {
 public:
-    DeclConsumer(Rewriter &rewrite): visitor(rewrite){};
+    // DeclConsumer(Rewriter *rewrite): visitor(rewrite){};
+    DeclConsumer(ASTContext *context) :visitor(context){};
     virtual bool HandleTopLevelDecl(DeclGroupRef DR) 
     {
       for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
@@ -140,10 +117,10 @@ public:
 
 
 int main(int argc, const char **argv) {
-  CommonOptionsParser OptionsParser(argc, argv);
+  // CommonOptionsParser OptionsParser(argc, argv);
   
-  ClangTool Tool(OptionsParser.getCompilations(),
-                 OptionsParser.getSourcePathList());
+  // ClangTool Tool(OptionsParser.getCompilations(),
+  //                OptionsParser.getSourcePathList());
 
   // FunctionPrinter Printer1;
   // VarPrinter Printer2;
@@ -151,19 +128,10 @@ int main(int argc, const char **argv) {
   // Finder.addMatcher(fMatcher, &Printer1);
   // Finder.addMatcher(vMatcher, &Printer2);
   // return (Tool.run(newFrontendActionFactory(&Finder)));
+  
 
-  // CompilerInstance TheCompInst;
-  // SourceManager &SourceMgr = TheCompInst.getSourceManager();
-  // Rewriter TheRewriter;
-  // // TheRewriter.setSourceMgr(SourceMgr, TheCompInst.getLangOpts());
-  // MyASTConsumer TheConsumer(TheRewriter);
-  // ParseAST(TheCompInst.getPreprocessor(), &TheConsumer,
-  //          TheCompInst.getASTContext());
-  // const RewriteBuffer *RewriteBuf =
-  //       TheRewriter.getRewriteBufferFor(SourceMgr.getMainFileID());
-  //       llvm::outs() << std::string(RewriteBuf->begin(), RewriteBuf->end());
-  
-  
+  CommonOptionsParser op(argc, argv);
+  ClangTool Tool(op.getCompilations(), op.getSourcePathList());
   Tool.run(newFrontendActionFactory<InstrumentAction>());
 
 }
