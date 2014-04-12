@@ -27,10 +27,14 @@
 #include "clang/Lex/Lexer.h"
 
 
+
 using namespace clang::tooling;
 using namespace llvm;
 using namespace clang;
 using namespace clang::ast_matchers;
+using namespace std;
+
+Rewriter Rewrite;
 
 // CommonOptionsParser declares HelpMessage with a description of the common
 // command-line options related to the compilation database and input files.
@@ -40,7 +44,8 @@ static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 // A help message for this specific tool can be added afterwards.
 static cl::extrahelp MoreHelp("\nMore help text...");
 
-DeclarationMatcher fMatcher = functionDecl(isDefinition()).bind("funcDecl");
+DeclarationMatcher fMatcher = 
+  functionDecl(isDefinition()).bind("funcDecl");
 
 class FunctionPrinter : public MatchFinder::MatchCallback {
 public:
@@ -53,7 +58,8 @@ public:
   }
 };
 
-DeclarationMatcher vMatcher = varDecl(isDefinition()).bind("varDecl");
+DeclarationMatcher vMatcher = 
+  varDecl(isDefinition()).bind("varDecl");
 
 class VarPrinter : public MatchFinder::MatchCallback {
 public:
@@ -66,34 +72,41 @@ public:
   }
 };
 
+
+
+
+
+
 class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
 public:
-  // DeclStmtASTVisitor(Rewriter *rewrite) : Rewrite(rewrite){}
-  DeclStmtASTVisitor(ASTContext *context) : Context(context){}
-    bool VisitDeclStmt(DeclStmt *V)
+  DeclStmtASTVisitor(ASTContext *context) : Context(context){
+    Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
+  }
+   bool VisitDeclStmt(DeclStmt *V)
     {
         if (V->isSingleDecl()){
           // SourceRange sr = V->getSourceRange();
-          // SourceLocation ST = sr.getBegin();
+          // SourceLocation ST = sr.getEnd();
           SourceLocation ST = V->getLocEnd();
-          Rewriter Rewrite;
-          Rewrite.InsertText(ST,
-                            // "printf("value:%s\n",T->getEvaluatedValue());\n",
-                            "//aaaaaaaaaaaaa\n",true,true);
-          // printf("testtest\n");
+          int offset = Lexer::MeasureTokenLength(ST,Context->getSourceManager(),
+                                                  Context->getLangOpts()) + 1;
+          SourceLocation end = ST.getLocWithOffset(offset);
+          // Rewrite.InsertText(V->getEndLoc(),
+
+          Rewrite.InsertTextAfter(end,"printf(\"value of variable: %s\",);\n");
+                            // "//aaaaaaaaaaaaa\n",true,true);
+          errs() << "InsertText\n";
         }
         return true;
     }
 private:
   ASTContext *Context;
-  // Rewriter *Rewrite;
 };
 
 
 class DeclConsumer : public clang::ASTConsumer
 {
 public:
-    // DeclConsumer(Rewriter *rewrite): visitor(rewrite){};
     DeclConsumer(ASTContext *context) :visitor(context){};
     virtual bool HandleTopLevelDecl(DeclGroupRef DR) 
     {
@@ -128,10 +141,11 @@ int main(int argc, const char **argv) {
   // Finder.addMatcher(fMatcher, &Printer1);
   // Finder.addMatcher(vMatcher, &Printer2);
   // return (Tool.run(newFrontendActionFactory(&Finder)));
-  
 
   CommonOptionsParser op(argc, argv);
   ClangTool Tool(op.getCompilations(), op.getSourcePathList());
-  Tool.run(newFrontendActionFactory<InstrumentAction>());
+  int result = Tool.run(newFrontendActionFactory<InstrumentAction>());
+  Rewrite.getEditBuffer(Rewrite.getSourceMgr().getMainFileID()).write(errs());
+  return result;
 
 }
