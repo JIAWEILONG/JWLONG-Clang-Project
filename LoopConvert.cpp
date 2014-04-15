@@ -85,17 +85,22 @@ public:
    bool VisitDeclStmt(DeclStmt *V)
     {
         if (V->isSingleDecl()){
-          // SourceRange sr = V->getSourceRange();
-          // SourceLocation ST = sr.getEnd();
           SourceLocation ST = V->getLocEnd();
           int offset = Lexer::MeasureTokenLength(ST,Context->getSourceManager(),
                                                   Context->getLangOpts()) + 1;
           SourceLocation end = ST.getLocWithOffset(offset);
-          // Rewrite.InsertText(V->getEndLoc(),
-
-          Rewrite.InsertTextAfter(end,"printf(\"value of variable: %s\",);\n");
-                            // "//aaaaaaaaaaaaa\n",true,true);
+        
+          std::string i;
+          int a = 1;
+          i = "printf(\"value of variable: %s\",";
+          // i += V->getSingleDecl().getAsString().c_str();
+          i += a;
+          i += ");\n";
+          
+          Rewrite.InsertTextAfter(end,i);
+                            // ("//aaaaaaaaaaaaa\n",true,true);
           errs() << "InsertText\n";
+
         }
         return true;
     }
