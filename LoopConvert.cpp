@@ -26,8 +26,6 @@
 #include "clang/AST/DeclBase.h"
 #include "clang/Lex/Lexer.h"
 
-
-
 using namespace clang::tooling;
 using namespace llvm;
 using namespace clang;
@@ -74,38 +72,59 @@ public:
 
 
 
-
-
-
-class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
+class VarDeclASTVisitor : public RecursiveASTVisitor<VarDeclASTVisitor>{
 public:
-  DeclStmtASTVisitor(ASTContext *context) : Context(context){
+  VarDeclASTVisitor(ASTContext *context) : Context(context){
     Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
   }
-   bool VisitDeclStmt(DeclStmt *V)
+   bool VisitVarDecl(VarDecl *V)
     {
-        if (V->isSingleDecl()){
+        if (V->isLocalVarDecl()){
           SourceLocation ST = V->getLocEnd();
           int offset = Lexer::MeasureTokenLength(ST,Context->getSourceManager(),
                                                   Context->getLangOpts()) + 1;
           SourceLocation end = ST.getLocWithOffset(offset);
         
           std::string i;
-          int a = 1;
-          i = "printf(\"value of variable: %s\",";
-          // i += V->getSingleDecl().getAsString().c_str();
-          i += a;
+          i = "\nprintf(\"ORBS: %d\",";
+          i += V->getNameAsString();
           i += ");\n";
           
           Rewrite.InsertTextAfter(end,i);
-                            // ("//aaaaaaaaaaaaa\n",true,true);
           errs() << "InsertText\n";
-
         }
         return true;
     }
 private:
   ASTContext *Context;
+};
+
+class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
+public:
+  DeclStmtASTVisitor(ASTContext *context) : Context(context){
+    Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
+  }
+   bool VisitDeclStmt(DeclStmt *N)
+    {
+        // if (N->isSingleDecl()){
+          // SourceLocation ST = N->getLocEnd();
+          // int offset = Lexer::MeasureTokenLength(ST,Context->getSourceManager(),
+          //                                         Context->getLangOpts()) + 1;
+          // SourceLocation end = ST.getLocWithOffset(offset);
+        
+          // std::string i;
+          // i = "printf(\"value of variable: %d\",";
+          // i += N->getNameAsString();
+          // i += ");\n";
+          
+          // Rewrite.InsertTextAfter(end,i);
+          // errs() << "InsertText\n";
+        // }
+        return true;
+    }
+private:
+  ASTContext *Context;
+  VarDeclASTVisitor visitor;
 };
 
 
