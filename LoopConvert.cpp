@@ -74,57 +74,53 @@ public:
 
 class VarDeclASTVisitor : public RecursiveASTVisitor<VarDeclASTVisitor>{
 public:
-  VarDeclASTVisitor(ASTContext *context) : Context(context){
+  VarDeclASTVisitor(ASTContext *context, SourceLocation st) : Context(context){
     Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
   }
    bool VisitVarDecl(VarDecl *V)
     {
-        if (V->isLocalVarDecl()){
-          SourceLocation ST = V->getLocEnd();
-          int offset = Lexer::MeasureTokenLength(ST,Context->getSourceManager(),
-                                                  Context->getLangOpts()) + 1;
-          SourceLocation end = ST.getLocWithOffset(offset);
-        
+        // if (V->isLocalVarDecl()){
+          // SourceLocation st = V->getLocEnd();
+          // int offset = Lexer::MeasureTokenLength(st,Context->getSourceManager(),
+          //                                         Context->getLangOpts()) + 1;
+          // SourceLocation end = st.getLocWithOffset(offset);
+          
           std::string i;
           i = "\nprintf(\"ORBS: %d\",";
           i += V->getNameAsString();
           i += ");\n";
           
-          Rewrite.InsertTextAfter(end,i);
+          Rewrite.InsertTextAfter(st,i);
           errs() << "InsertText\n";
-        }
-        return true;
-    }
-private:
-  ASTContext *Context;
-};
-
-class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
-public:
-  DeclStmtASTVisitor(ASTContext *context) : Context(context){
-    Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
-  }
-   bool VisitDeclStmt(DeclStmt *N)
-    {
-        // if (N->isSingleDecl()){
-          // SourceLocation ST = N->getLocEnd();
-          // int offset = Lexer::MeasureTokenLength(ST,Context->getSourceManager(),
-          //                                         Context->getLangOpts()) + 1;
-          // SourceLocation end = ST.getLocWithOffset(offset);
-        
-          // std::string i;
-          // i = "printf(\"value of variable: %d\",";
-          // i += N->getNameAsString();
-          // i += ");\n";
-          
-          // Rewrite.InsertTextAfter(end,i);
-          // errs() << "InsertText\n";
         // }
         return true;
     }
 private:
   ASTContext *Context;
-  VarDeclASTVisitor visitor;
+  SourceLocation st;
+};
+
+class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
+public:
+  DeclStmtASTVisitor(ASTContext *context) : Context(context){
+    // Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
+  }
+   bool VisitDeclStmt(DeclStmt *V)
+    {
+      if(Context->getSourceManager().isInMainFile(V->getStartLoc()))
+      {
+        SourceLocation st = V->getLocEnd().getLocWithOffset(1);
+        VarDeclASTVisitor VDVisitor(Context, st);
+        VDVisitor.TraverseStmt((Stmt*)V);
+        return true;
+      }
+      else
+        return false; 
+        // if (N->isSingleDecl()){
+        // }
+    }
+private:
+  ASTContext *Context;
 };
 
 
