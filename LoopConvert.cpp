@@ -74,30 +74,23 @@ public:
 
 class VarDeclASTVisitor : public RecursiveASTVisitor<VarDeclASTVisitor>{
 public:
-  VarDeclASTVisitor(ASTContext *context, SourceLocation st) : Context(context){
+  VarDeclASTVisitor(ASTContext *context, SourceLocation st) : Context(context), ST(st){
     Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
   }
    bool VisitVarDecl(VarDecl *V)
-    {
-        // if (V->isLocalVarDecl()){
-          // SourceLocation st = V->getLocEnd();
-          // int offset = Lexer::MeasureTokenLength(st,Context->getSourceManager(),
-          //                                         Context->getLangOpts()) + 1;
-          // SourceLocation end = st.getLocWithOffset(offset);
+    { 
+      std::string i;
+      i = "\nprintf(\"ORBS: %d\\n\",";
+      i += V->getNameAsString();
+      i += ");\n";
           
-          std::string i;
-          i = "\nprintf(\"ORBS: %d\",";
-          i += V->getNameAsString();
-          i += ");\n";
-          
-          Rewrite.InsertTextAfter(st,i);
-          errs() << "InsertText\n";
-        // }
-        return true;
+      Rewrite.InsertTextAfter(ST,i);
+      errs() << "InsertText\n";
+      return true;
     }
 private:
   ASTContext *Context;
-  SourceLocation st;
+  SourceLocation ST;
 };
 
 class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
@@ -105,8 +98,7 @@ public:
   DeclStmtASTVisitor(ASTContext *context) : Context(context){
     // Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
   }
-   bool VisitDeclStmt(DeclStmt *V)
-    {
+   bool VisitDeclStmt(DeclStmt *V){
       if(Context->getSourceManager().isInMainFile(V->getStartLoc()))
       {
         SourceLocation st = V->getLocEnd().getLocWithOffset(1);
@@ -116,20 +108,15 @@ public:
       }
       else
         return false; 
-        // if (N->isSingleDecl()){
-        // }
     }
 private:
   ASTContext *Context;
 };
 
-
-class DeclConsumer : public clang::ASTConsumer
-{
+class DeclConsumer : public clang::ASTConsumer{
 public:
     DeclConsumer(ASTContext *context) :visitor(context){};
-    virtual bool HandleTopLevelDecl(DeclGroupRef DR) 
-    {
+    virtual bool HandleTopLevelDecl(DeclGroupRef DR) {
       for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
         visitor.TraverseDecl(*b);
       return true;
@@ -147,8 +134,6 @@ public:
   }
 };
 
-
-
 int main(int argc, const char **argv) {
   // CommonOptionsParser OptionsParser(argc, argv);
   
@@ -165,7 +150,8 @@ int main(int argc, const char **argv) {
   CommonOptionsParser op(argc, argv);
   ClangTool Tool(op.getCompilations(), op.getSourcePathList());
   int result = Tool.run(newFrontendActionFactory<InstrumentAction>());
-  Rewrite.getEditBuffer(Rewrite.getSourceMgr().getMainFileID()).write(errs());
-  return result;
 
+  Rewrite.getEditBuffer(Rewrite.getSourceMgr().getMainFileID()).write(errs());
+
+  return result;
 }
