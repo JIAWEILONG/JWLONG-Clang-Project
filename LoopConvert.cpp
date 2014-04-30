@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string>
 #include <sstream>
+#include <iostream>
+#include <fstream>
 // Declares clang::SyntaxOnlyAction.
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
@@ -32,7 +34,6 @@ using namespace clang;
 using namespace clang::ast_matchers;
 using namespace std;
 
-Rewriter Rewrite;
 
 // CommonOptionsParser declares HelpMessage with a description of the common
 // command-line options related to the compilation database and input files.
@@ -74,18 +75,37 @@ public:
 
 class VarDeclASTVisitor : public RecursiveASTVisitor<VarDeclASTVisitor>{
 public:
-  VarDeclASTVisitor(ASTContext *context, SourceLocation st) : Context(context), ST(st){
-    Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
-  }
+  VarDeclASTVisitor(ASTContext *context, SourceLocation st) : Context(context), ST(st){}
    bool VisitVarDecl(VarDecl *V)
     { 
       std::string i;
       i = "\nprintf(\"ORBS: %d\\n\",";
       i += V->getNameAsString();
       i += ");\n";
-          
+      Rewriter Rewrite;
+      Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
       Rewrite.InsertTextAfter(ST,i);
-      errs() << "InsertText\n";
+      Rewrite.getEditBuffer(Rewrite.getSourceMgr().getMainFileID()).write(errs());
+
+      unsigned position = Context->getSourceManager().getFileOffset(ST);
+      unsigned lineNum = Context->getSourceManager().getLineNumber(Context->getSourceManager().getFileID(ST), position);
+      string varName = V->getDeclName().getAsString().c_str();
+
+      string orig_path = Context->getSourceManager().getBufferName(ST);       
+      unsigned pos = orig_path.find(".");
+      string orig_filename = orig_path.substr(0, pos);
+
+      std::stringstream ss;
+      ss << orig_filename << "_" << varName << "_" << lineNum << ".c";
+
+      string str(ss.str());
+      const char* cstr = str.c_str();
+      ofstream outFile(cstr);
+
+      const RewriteBuffer *RewriteBuf = Rewrite.getRewriteBufferFor(Rewrite.getSourceMgr().getMainFileID());
+      outFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+      outFile.close();
+
       return true;
     }
 private:
@@ -95,10 +115,9 @@ private:
 
 class DeclStmtASTVisitor : public RecursiveASTVisitor<DeclStmtASTVisitor>{
 public:
-  DeclStmtASTVisitor(ASTContext *context) : Context(context){
-    // Rewrite.setSourceMgr(Context->getSourceManager(),Context->getLangOpts());
-  }
-   bool VisitDeclStmt(DeclStmt *V){
+  DeclStmtASTVisitor(ASTContext *context) : Context(context){}
+   bool VisitDeclStmt(DeclStmt *V)
+   {
       if(Context->getSourceManager().isInMainFile(V->getStartLoc()))
       {
         SourceLocation st = V->getLocEnd().getLocWithOffset(1);
@@ -116,7 +135,8 @@ private:
 class DeclConsumer : public clang::ASTConsumer{
 public:
     DeclConsumer(ASTContext *context) :visitor(context){};
-    virtual bool HandleTopLevelDecl(DeclGroupRef DR) {
+    virtual bool HandleTopLevelDecl(DeclGroupRef DR) 
+    {
       for (DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b)
         visitor.TraverseDecl(*b);
       return true;
@@ -136,10 +156,8 @@ public:
 
 int main(int argc, const char **argv) {
   // CommonOptionsParser OptionsParser(argc, argv);
-  
   // ClangTool Tool(OptionsParser.getCompilations(),
   //                OptionsParser.getSourcePathList());
-
   // FunctionPrinter Printer1;
   // VarPrinter Printer2;
   // MatchFinder Finder;
@@ -151,7 +169,7 @@ int main(int argc, const char **argv) {
   ClangTool Tool(op.getCompilations(), op.getSourcePathList());
   int result = Tool.run(newFrontendActionFactory<InstrumentAction>());
 
-  Rewrite.getEditBuffer(Rewrite.getSourceMgr().getMainFileID()).write(errs());
-
+  // Rewrite.getEditBuffer(Rewrite.getSourceMgr().getMainFileID()).write(errs());
+  
   return result;
 }
